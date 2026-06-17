@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"time"
 	"github.com/joho/godotenv"
 	_ "github.com/microsoft/go-mssqldb"
 	
@@ -15,6 +16,15 @@ type Pessoa struct {
     ID          int
     RazaoSocial string
     CNPJ        string
+}
+
+type OrdemServico struct {
+    ID                int
+    Numero            string
+    RazaoSocial       string
+    Abertura          time.Time
+    Prazo             time.Time
+    DataHoraConclusao sql.NullTime
 }
 
 func main(){
@@ -69,4 +79,37 @@ func main(){
 	for _, p := range pessoas {
 		fmt.Printf("ID: %d, Razão Social: %s, CNPJ: %s\n", p.ID, p.RazaoSocial, p.CNPJ)
 	}
+
+	osRows, err := db.Query(`
+        SELECT TOP 5 Id, Numero, RazaoSocial, Abertura, Prazo, DataHoraConclusao 
+        FROM dbo.OrdemServico 
+        WHERE Numero IS NOT NULL AND Abertura IS NOT NULL
+        ORDER BY Abertura DESC
+    `)
+    if err != nil {
+        log.Fatal("Erro ao executar consulta: ", err.Error())
+    }
+    defer osRows.Close()
+    
+    fmt.Println("\nOrdens de Serviço encontradas:")
+    var ordens []OrdemServico
+    for osRows.Next() {
+        var o OrdemServico
+        
+        err := osRows.Scan(&o.ID, &o.Numero, &o.RazaoSocial, &o.Abertura, &o.Prazo, &o.DataHoraConclusao)
+        if err != nil {
+            log.Fatal("Erro ao escanear linha: ", err.Error())
+        }
+        ordens = append(ordens, o)
+        
+        status := "Aberta"
+        if o.DataHoraConclusao.Valid {
+            status = fmt.Sprintf("Concluída em %s", o.DataHoraConclusao.Time.Format("02/01/2006 15:04"))
+        }
+        fmt.Printf("-> ID: %d, Número: %s, Cliente: %s, Status: %s\n", o.ID, o.Numero, o.RazaoSocial, status)
+    }
+
+    if len(ordens) == 0 {
+        fmt.Println("[Aviso]: O SQL Server não devolveu nenhuma linha para a tabela dbo.OrdemServico.")
+    }
 }
