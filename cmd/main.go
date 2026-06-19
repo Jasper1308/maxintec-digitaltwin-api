@@ -1,14 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"time"
+	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"maxintec-digitaltwin-api/internal/config"
+	"maxintec-digitaltwin-api/internal/ordemservico"
 	ordemMssql "maxintec-digitaltwin-api/internal/ordemservico/mssql"
-	pessoaMssql "maxintec-digitaltwin-api/internal/pessoa/mssql"
 	"maxintec-digitaltwin-api/internal/platform/database"
 )
 
@@ -23,36 +23,24 @@ func main() {
 	defer db.Close()
 	fmt.Println("Conexão com SQL Server estabelecida com sucesso!")
 
-	pessoaRepo := pessoaMssql.NewRepository(db)
 	osRepo := ordemMssql.NewRepository(db)
+	osService := ordemservico.NewService(osRepo)
+	osHandler := ordemservico.NewHandler(osService)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Usar gin.SetMode(gin.ReleaseMode) em produção real
+	r := gin.Default()
 
-	pessoas, err := pessoaRepo.GetTop5WithCNPJ(ctx)
-	if err != nil {
-		log.Printf("[Erro]: Falha ao buscar pessoas: %v\n", err)
-	} else {
-		fmt.Println("\nPessoas encontradas:")
-		for _, p := range pessoas {
-			fmt.Printf("ID: %d, Razão Social: %s, CNPJ: %s\n", p.ID, p.RazaoSocial, p.CNPJ)
-		}
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "UP"})
+	})
+
+	v1 := r.Group("/api/v1")
+	{
+		osHandler.RegisterRoutes(v1)
 	}
 
-	ordens, err := osRepo.GetTop5Recent(ctx)
-	if err != nil {
-		log.Printf("[Erro]: Falha ao buscar ordens de serviço: %v\n", err)
-	} else {
-		fmt.Println("\nOrdens de Serviço encontradas:")
-		for _, o := range ordens {
-			status := "Aberta"
-			if o.DataHoraConclusao.Valid {
-				status = fmt.Sprintf("Concluída em %s", o.DataHoraConclusao.Time.Format("02/01/2006 15:04"))
-			}
-			fmt.Printf("-> ID: %d, Número: %s, Cliente: %s, Status: %s\n", o.ID, o.Numero, o.RazaoSocial, status)
-		}
-		if len(ordens) == 0 {
-			fmt.Println("[Aviso]: O SQL Server não devolveu nenhuma linha para a tabela dbo.OrdemServico.")
-		}
+	fmt.Println("Servidor HTTP rodando na porta :8080...")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Erro ao iniciar o servidor HTTP: ", err)
 	}
 }
