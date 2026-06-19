@@ -39,3 +39,34 @@ func (r *mssqlRepository) GetTop5WithCNPJ(ctx context.Context) ([]pessoa.Pessoa,
 
 	return pessoas, nil
 }
+
+// GetClientesComOSAberta busca apenas clientes com OS pendente no banco de produção
+func (r *mssqlRepository) GetClientesComOSAberta(ctx context.Context) ([]pessoa.Pessoa, error) {
+	query := `
+		SELECT DISTINCT p.Id, p.RazaoSocial, ISNULL(p.CNPJ, '') 
+		FROM Pessoa p WITH (NOLOCK)
+		INNER JOIN dbo.OrdemServico os WITH (NOLOCK) ON p.RazaoSocial = os.RazaoSocial
+		WHERE os.DataHoraConclusao IS NULL 
+		  AND os.Numero IS NOT NULL
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var clientes []pessoa.Pessoa
+	for rows.Next() {
+		var p pessoa.Pessoa
+		if err := rows.Scan(&p.ID, &p.RazaoSocial, &p.CNPJ); err != nil {
+			return nil, err
+		}
+		clientes = append(clientes, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return clientes, nil
+}

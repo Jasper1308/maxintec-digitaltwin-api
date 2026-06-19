@@ -9,6 +9,8 @@ import (
 	"maxintec-digitaltwin-api/internal/config"
 	"maxintec-digitaltwin-api/internal/ordemservico"
 	ordemMssql "maxintec-digitaltwin-api/internal/ordemservico/mssql"
+	"maxintec-digitaltwin-api/internal/pessoa"
+	pessoaMssql "maxintec-digitaltwin-api/internal/pessoa/mssql"
 	"maxintec-digitaltwin-api/internal/platform/database"
 )
 
@@ -27,16 +29,20 @@ func main() {
 	osService := ordemservico.NewService(osRepo)
 	osHandler := ordemservico.NewHandler(osService)
 
-	// Usar gin.SetMode(gin.ReleaseMode) em produção real
+	pessoaRepo := pessoaMssql.NewRepository(db)
+	pessoaService := pessoa.NewService(pessoaRepo)
+	pessoaHandler := pessoa.NewHandler(pessoaService)
+
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	v1 := r.Group("/api/v1")
+	v1 := r.Group("/api")
 	{
 		osHandler.RegisterRoutes(v1)
+		pessoaHandler.RegisterRoutes(v1)
 	}
 
 	fmt.Println("Servidor HTTP rodando na porta :8080...")
