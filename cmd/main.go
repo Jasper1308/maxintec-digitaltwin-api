@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"maxintec-digitaltwin-api/internal/config"
@@ -12,6 +14,7 @@ import (
 	"maxintec-digitaltwin-api/internal/pessoa"
 	pessoaMssql "maxintec-digitaltwin-api/internal/pessoa/mssql"
 	"maxintec-digitaltwin-api/internal/platform/database"
+	"maxintec-digitaltwin-api/internal/rastreador"
 )
 
 func main() {
@@ -24,6 +27,12 @@ func main() {
 	}
 	defer db.Close()
 	fmt.Println("Conexão com SQL Server estabelecida com sucesso!")
+
+	rastreadorClient := rastreador.NewClientFromEnv()
+	trackingCache := rastreador.NewMemoryCache()
+
+	trackerWorker := rastreador.NewWorker(rastreadorClient, trackingCache)
+	trackerWorker.Start(context.Background(), 1*time.Minute)
 
 	osRepo := ordemMssql.NewRepository(db)
 	osService := ordemservico.NewService(osRepo)
@@ -43,6 +52,24 @@ func main() {
 	{
 		osHandler.RegisterRoutes(v1)
 		pessoaHandler.RegisterRoutes(v1)
+
+		v1.GET("/veiculos/posicoes", func(c *gin.Context) {
+			posicoes := trackingCache.GetAll()
+			
+			if len(posicoes) == 0 {
+				c.JSON(http.StatusOK, gin.H{
+					"status":  "OK",
+					"message": "Aguardando primeira coleta de dados do rastreador...",
+					"data":    []interface{}{},
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"status": "OK",
+				"data":   posicoes,
+			})
+		})
 	}
 
 	fmt.Println("Servidor HTTP rodando na porta :8080...")
