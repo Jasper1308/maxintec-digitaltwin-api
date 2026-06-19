@@ -18,6 +18,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/ordens-servico/recentes", h.GetRecent)
+	router.GET("/ordens-servico/painel", h.GetPainel)
 }
 
 func (h *Handler) GetRecent(c *gin.Context) {
@@ -35,4 +36,21 @@ func (h *Handler) GetRecent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ordens)
+}
+
+func (h *Handler) GetPainel(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	dadosPainel, err := h.service.GetDashboard(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar dados do painel"})
+		return
+	}
+
+	if dadosPainel == nil {
+		dadosPainel = []PainelOrdemServico{}
+	}
+
+	c.JSON(http.StatusOK, dadosPainel)
 }

@@ -60,7 +60,7 @@ func (r *mssqlRepository) GetPainelAbertas(ctx context.Context) ([]ordemservico.
 			ISNULL(EnderecoBairro, ''), 
 			ISNULL(EnderecoCep, '')
 		FROM dbo.OrdemServico WITH (NOLOCK)
-		WHERE DataHoraConclusao IS NULL 
+		WHERE EtapaSituacao < 3
 		  AND Numero IS NOT NULL
 		ORDER BY Abertura DESC
 	`
@@ -83,7 +83,7 @@ func (r *mssqlRepository) GetPainelAbertas(ctx context.Context) ([]ordemservico.
 			&res.DataAbertura, 
 			&res.Prazo,
 			&res.Rua, 
-			&res.Numero, 
+			&res.NumeroEnd, 
 			&res.Bairro, 
 			&res.CEP,
 		)
