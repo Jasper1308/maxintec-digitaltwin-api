@@ -1,15 +1,17 @@
 package ordemservico
 
-import (
-	"database/sql"
-	"time"
-)
+import "time"
 
-type OrdemServico struct {
-	ID                int
-	Numero            string
-	RazaoSocial       string
-	Abertura          time.Time
-	Prazo             time.Time
-	DataHoraConclusao sql.NullTime
+type PainelOrdemServico struct {
+	ID             int       `json:"id"`
+	Numero         string    `json:"numero"`
+	Cliente        string    `json:"cliente"`
+	ResponsavelID  *int      `json:"responsavel_id"`
+	DataAbertura   time.Time `json:"data_abertura"`
+	Prazo          time.Time `json:"prazo"`
+	TempoDecorrido string    `json:"tempo_decorrido"`
+	Rua    string `json:"rua"`
+	Numero string `json:"numero_end"`
+	Bairro string `json:"bairro"`
+	CEP    string `json:"cep"`
 }

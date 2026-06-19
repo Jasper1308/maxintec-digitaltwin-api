@@ -45,3 +45,53 @@ func (r *mssqlRepository) GetTop5Recent(ctx context.Context) ([]ordemservico.Ord
 
 	return ordens, nil
 }
+
+func (r *mssqlRepository) GetPainelAbertas(ctx context.Context) ([]ordemservico.PainelOrdemServico, error) {
+	query := `
+		SELECT 
+			Id, 
+			ISNULL(Numero, ''), 
+			ISNULL(RazaoSocial, 'Cliente Não Identificado'), 
+			ResponsavelId, 
+			Abertura, 
+			Prazo,
+			ISNULL(EnderecoRua, ''), 
+			ISNULL(CONVERT(VARCHAR, EnderecoNumero), ''), 
+			ISNULL(EnderecoBairro, ''), 
+			ISNULL(EnderecoCep, '')
+		FROM dbo.OrdemServico WITH (NOLOCK)
+		WHERE DataHoraConclusao IS NULL 
+		  AND Numero IS NOT NULL
+		ORDER BY Abertura DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var painel []ordemservico.PainelOrdemServico
+	for rows.Next() {
+		var res ordemservico.PainelOrdemServico
+		
+		err := rows.Scan(
+			&res.ID, 
+			&res.Numero, 
+			&res.Cliente, 
+			&res.ResponsavelID, 
+			&res.DataAbertura, 
+			&res.Prazo,
+			&res.Rua, 
+			&res.Numero, 
+			&res.Bairro, 
+			&res.CEP,
+		)
+		if err != nil {
+			return nil, err
+		}
+		painel = append(painel, res)
+	}
+
+	return painel, nil
+}
